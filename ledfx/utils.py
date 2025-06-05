@@ -447,7 +447,7 @@ class WLED:
             brightness (int): The brightness value between 0-255
         """
         # cast to int and clamp to range
-        brightness = max(0, max(int(brightness), 255))
+        brightness = max(0, min(int(brightness), 255))
         bri = {"bri": brightness}
 
         await WLED._wled_request(
