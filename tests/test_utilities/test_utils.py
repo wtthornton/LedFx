@@ -198,6 +198,7 @@ class EnvironmentCleanup:
             if response.status_code == 200:
                 # LedFx has returned a response, so it is running, but likely still hydrating the schema
                 # We will wait until it is fully hydrated
+                start_time = time.time()
                 while True:
                     old_schema = requests.get(
                         f"http://{SERVER_PATH}/api/schema", timeout=1
@@ -208,6 +209,8 @@ class EnvironmentCleanup:
                     )
                     if old_schema.json() == new_schema.json():
                         break
+                    if time.time() - start_time > 5:
+                        return False
                 time.sleep(2)
                 return True
         except requests.exceptions.ConnectionError:
