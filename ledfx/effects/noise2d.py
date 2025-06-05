@@ -143,7 +143,7 @@ class Noise2d(Twod, GradientEffect):
         noise_x = self.noise_x - (scale_x * self.r_height / 2)
         noise_y = self.noise_y - (scale_y * self.r_width / 2)
 
-        # generate arrays of the X adn Y axis of our plane, with a singular Z
+        # generate arrays of the X and Y axis of our plane, with a singular Z
         # this should allow libs to use any internal acceleration for unrolling across all points
         x_array = np.linspace(
             noise_x, noise_x + scale_x * self.r_height, self.r_height
@@ -166,7 +166,7 @@ class Noise2d(Twod, GradientEffect):
         # slice out the unwanted dimension
         self.noise_sliced = self.noise_3d[..., 0]
 
-        # apply the stetch param to expand the range of the color space, as noise is likely not full -1 to 1
+        # apply the stretch param to expand the range of the color space, as noise is likely not full -1 to 1
         # TODO: look at what color mapping does with out of range values, do we need to cap here
         self.noise_stretched = self.noise_sliced * self.stretch
         # normalise the noise from -1,1 range to 0,1
