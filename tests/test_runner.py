@@ -1,25 +1,40 @@
 import pytest
 import sys
-from pathlib import Path
+import os
+import subprocess
+import time
+import requests
+
+# Add the project root directory to the Python path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, project_root)
+
+def start_ledfx_server():
+    """Start the LedFx server if it is not already running."""
+    try:
+        # Check if the server is already running
+        response = requests.get('http://127.0.0.1:4619/api/schema')
+        if response.status_code == 200:
+            print("LedFx server is already running.")
+            return True
+    except requests.exceptions.ConnectionError:
+        print("LedFx server is not running. Starting it now...")
+        # Start the LedFx server
+        subprocess.Popen([sys.executable, '-m', 'ledfx'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Wait for the server to start
+        time.sleep(5)  # Adjust the sleep time as needed
+        return True
+    return False
 
 def main():
-    """Run the test suite."""
-    # Get the project root directory
-    project_root = Path(__file__).parent.parent
-
-    # Add the project root to the Python path
-    sys.path.insert(0, str(project_root))
+    """Main function to run the test suite."""
+    # Ensure the LedFx server is running
+    if not start_ledfx_server():
+        print("Failed to start the LedFx server. Exiting.")
+        sys.exit(1)
 
     # Run the tests
-    args = [
-        "--verbose",
-        "--cov=ledfx",
-        "--cov-report=term-missing",
-        "--cov-report=html",
-        "tests/",
-    ]
-
-    return pytest.main(args)
+    pytest.main(['--verbose', '--cov=ledfx', '--cov-report=term-missing', '--cov-report=html', 'tests/'])
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    main() 

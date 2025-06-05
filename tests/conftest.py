@@ -12,33 +12,37 @@ from tests.test_utilities.consts import BASE_PORT
 from tests.test_utilities.test_utils import EnvironmentCleanup, TestCase
 
 # Add the project root directory to the Python path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, project_root)
 
-# Set up test environment variables
-os.environ["LEDFX_TESTING"] = "true"
-os.environ["LEDFX_CONFIG_DIR"] = str(project_root / "tests" / "test_data" / "config")
-os.environ["LEDFX_DATA_DIR"] = str(project_root / "tests" / "test_data" / "data")
-os.environ["LEDFX_USER_DIR"] = str(project_root / "tests" / "test_data" / "user")
-os.environ["LEDFX_BACKUP_DIR"] = str(project_root / "tests" / "test_data" / "backup")
+# Mock aubio module
+sys.modules['aubio'] = __import__('tests.mock_aubio')
 
-# Create test directories if they don't exist
-for directory in ["config", "data", "user", "backup"]:
-    os.makedirs(project_root / "tests" / "test_data" / directory, exist_ok=True)
+# Set up environment variables for testing
+os.environ['LEDFX_TESTING'] = 'true'
+os.environ['LEDFX_CONFIG_DIR'] = os.path.join(project_root, 'tests', 'config')
+os.environ['LEDFX_DATA_DIR'] = os.path.join(project_root, 'tests', 'data')
+os.environ['LEDFX_USER_DIR'] = os.path.join(project_root, 'tests', 'user')
+os.environ['LEDFX_BACKUP_DIR'] = os.path.join(project_root, 'tests', 'backup')
 
-@pytest.fixture(scope="session")
+# Create test directories if they do not exist
+for directory in [os.environ['LEDFX_CONFIG_DIR'], os.environ['LEDFX_DATA_DIR'], os.environ['LEDFX_USER_DIR'], os.environ['LEDFX_BACKUP_DIR']]:
+    os.makedirs(directory, exist_ok=True)
+
+@pytest.fixture
 def test_case():
     """Fixture to provide test case utilities."""
-    return TestCase
+    from tests.test_utilities.test_utils import TestCase
+    return TestCase()
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def test_directories():
     """Fixture to provide test directory paths."""
     return {
-        "config": os.environ["LEDFX_CONFIG_DIR"],
-        "data": os.environ["LEDFX_DATA_DIR"],
-        "user": os.environ["LEDFX_USER_DIR"],
-        "backup": os.environ["LEDFX_BACKUP_DIR"],
+        'config': os.environ['LEDFX_CONFIG_DIR'],
+        'data': os.environ['LEDFX_DATA_DIR'],
+        'user': os.environ['LEDFX_USER_DIR'],
+        'backup': os.environ['LEDFX_BACKUP_DIR'],
     }
 
 def pytest_sessionstart(session):
