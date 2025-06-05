@@ -8,7 +8,10 @@ from functools import cached_property, lru_cache
 import aubio
 import numpy as np
 import samplerate
-import sounddevice as sd
+try:
+    import sounddevice as sd
+except Exception:  # pragma: no cover - fallback when PortAudio is missing
+    sd = None
 import voluptuous as vol
 
 import ledfx.api.websocket
@@ -68,6 +71,9 @@ class AudioInputSource:
         Returns:
             integer: the sounddevice device index to use for audio input
         """
+        if sd is None:
+            return None
+
         device_list = sd.query_devices()
         default_output_device_idx = sd.default.device["output"]
         default_input_device_idx = sd.default.device["input"]
@@ -118,11 +124,17 @@ class AudioInputSource:
 
     @staticmethod
     def query_hostapis():
+        if sd is None:
+            return ({"name": "WEB AUDIO"},)
         return sd.query_hostapis() + ({"name": "WEB AUDIO"},)
 
     @staticmethod
     def query_devices():
-        return sd.query_devices() + tuple(
+        if sd is None:
+            devices = ()
+        else:
+            devices = sd.query_devices()
+        return devices + tuple(
             {
                 "hostapi": len(AudioInputSource.query_hostapis()) - 1,
                 "name": f"{client}",
@@ -140,7 +152,7 @@ class AudioInputSource:
             idx: f"{hostapis[device['hostapi']]['name']}: {device['name']}"
             for idx, device in enumerate(devices)
             if (
-                device["max_input_channels"] > 0
+                device.get("max_input_channels", 0) > 0
                 and "asio" not in device["name"].lower()
             )
         }
@@ -376,9 +388,12 @@ class AudioInputSource:
                 f"Unable to open Audio Device: {e} - please retry."
             )
             self.deactivate()
-        except sd.PortAudioError as e:
-            _LOGGER.error(f"{e}, Reverting to default input device")
-            open_audio_stream(default_device)
+        except Exception as e:
+            if sd is not None and isinstance(e, sd.PortAudioError):
+                _LOGGER.error(f"{e}, Reverting to default input device")
+                open_audio_stream(default_device)
+            else:
+                raise
 
     def deactivate(self):
         with self.lock:
