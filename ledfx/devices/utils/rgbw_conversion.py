@@ -13,15 +13,22 @@ class OutputMode(str, Enum):
 
 
 def rgb_to_output_mode(rgb_array, output_mode):
-    """
-    Convert RGB array to RGBW array using the specified white channel computation method.
+    """Convert an RGB array to an array formatted according to ``output_mode``.
 
-    Parameters:
-    - rgb_array: NumPy array of shape (n, 3) representing RGB data
-    - white_channel_computation: Method to use for computing the white channel
+    Parameters
+    ----------
+    rgb_array : :class:`numpy.ndarray`
+        Array of shape ``(n, 3)`` representing RGB data.
+    output_mode : :class:`~OutputMode`
+        Mode specifying how the white channel is generated. Valid values are
+        ``OutputMode.RGB`` (return RGB only), ``OutputMode.RGBW_NONE`` (append a
+        zero white channel), ``OutputMode.RGBW_ACCURATE`` (subtract the minimum
+        RGB value) and ``OutputMode.RGBW_BRIGHTER`` (do not subtract from RGB).
 
-    Returns:
-    - rgbw_array: NumPy array of shape (n, 4) representing RGBW data
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Array of shape ``(n, 4)`` representing RGBW data.
     """
     # Ensure the input is properly shaped
     assert rgb_array.shape[1] == 3, "Input array must have shape (n, 3)"
@@ -51,7 +58,7 @@ def rgb_to_output_mode(rgb_array, output_mode):
 
     else:
         raise ValueError(
-            f"Unknown white channel computation method: {output_mode}"
+            f"Unknown output mode: {output_mode}"
         )
 
     # Concatenate RGB and W channels
