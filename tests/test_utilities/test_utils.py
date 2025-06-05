@@ -3,7 +3,8 @@ import shutil
 import sys
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union, Dict, List
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -15,29 +16,19 @@ from tests.test_utilities.consts import SERVER_PATH
 
 
 @dataclass
-class APITestCase:
-    """
-    Represents a test case for the test runner.
-
-    Attributes:
-        execution_order (int): The order in which the test case should be executed. This order is within the test type/grouping, not the overall order of the tests.
-        method (str): The HTTP method to be used for the API request.
-        api_endpoint (str): The endpoint of the API to be tested, including the leading slash.
-        expected_return_code (int): The expected return code of the API response.
-        payload_to_send (Dict[str, Any], optional): The payload to be sent with the API request.
-        expected_response_keys (List[str], optional): The expected keys in the API response payload. You don't need to specify the entire payload, just the keys you want to check.
-        expected_payload_values (List[Dict[str, Any]], optional): The expected values in the API response payload. You don't need to specify the entire payload, just the key:values you want to check.
-        sleep_after_test (float, optional): The number of seconds to sleep after the test is complete. Defaults to 0.0. This is useful for tests that require a delay before the next test can be run.
-    """
-
-    execution_order: int
-    method: Literal["GET", "POST", "PUT", "DELETE"]
+class TestCase:
+    """Base test case class for all test cases."""
     api_endpoint: str
-    expected_return_code: int
-    payload_to_send: dict[str, Any] = None
-    expected_response_keys: list[str] = None
-    expected_response_values: list[dict[str, Any]] = None
-    sleep_after_test: float = 0
+    method: str
+    payload_to_send: Optional[Dict] = None
+    expected_return_code: int = 200
+    expected_response_keys: Optional[List[str]] = None
+    expected_response_values: Optional[List[Dict]] = None
+    sleep_after_test: Optional[float] = None
+    execution_order: int = 0
+
+
+APITestCase = TestCase
 
 
 class HTTPSession:
@@ -130,6 +121,33 @@ class HTTPSession:
 
 
 class EnvironmentCleanup:
+    """Utility class for cleaning up test environment."""
+
+    def __init__(self, test_directories: Dict[str, str]):
+        """Initialize with test directory paths."""
+        self.test_directories = test_directories
+
+    def cleanup(self):
+        """Clean up test directories."""
+        for directory in self.test_directories.values():
+            if os.path.exists(directory):
+                shutil.rmtree(directory)
+                os.makedirs(directory)
+
+    def setup(self):
+        """Set up test directories."""
+        for directory in self.test_directories.values():
+            os.makedirs(directory, exist_ok=True)
+
+    def __enter__(self):
+        """Context manager entry."""
+        self.setup()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.cleanup()
+
     @staticmethod
     def shutdown_ledfx():
         """

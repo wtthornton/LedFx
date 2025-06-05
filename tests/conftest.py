@@ -1,13 +1,45 @@
 import subprocess
 import time
+import os
+import sys
+from pathlib import Path
 
 import pytest
 
 from tests.test_definitions.all_effects import get_ledfx_effects
 from tests.test_definitions.audio_configs import get_ledfx_audio_configs
 from tests.test_utilities.consts import BASE_PORT
-from tests.test_utilities.test_utils import EnvironmentCleanup
+from tests.test_utilities.test_utils import EnvironmentCleanup, TestCase
 
+# Add the project root directory to the Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# Set up test environment variables
+os.environ["LEDFX_TESTING"] = "true"
+os.environ["LEDFX_CONFIG_DIR"] = str(project_root / "tests" / "test_data" / "config")
+os.environ["LEDFX_DATA_DIR"] = str(project_root / "tests" / "test_data" / "data")
+os.environ["LEDFX_USER_DIR"] = str(project_root / "tests" / "test_data" / "user")
+os.environ["LEDFX_BACKUP_DIR"] = str(project_root / "tests" / "test_data" / "backup")
+
+# Create test directories if they don't exist
+for directory in ["config", "data", "user", "backup"]:
+    os.makedirs(project_root / "tests" / "test_data" / directory, exist_ok=True)
+
+@pytest.fixture(scope="session")
+def test_case():
+    """Fixture to provide test case utilities."""
+    return TestCase
+
+@pytest.fixture(scope="session")
+def test_directories():
+    """Fixture to provide test directory paths."""
+    return {
+        "config": os.environ["LEDFX_CONFIG_DIR"],
+        "data": os.environ["LEDFX_DATA_DIR"],
+        "user": os.environ["LEDFX_USER_DIR"],
+        "backup": os.environ["LEDFX_BACKUP_DIR"],
+    }
 
 def pytest_sessionstart(session):
     """
@@ -27,8 +59,8 @@ def pytest_sessionstart(session):
     try:
         ledfx = subprocess.Popen(
             [
-                "uv",
-                "run",
+                sys.executable,
+                "-m",
                 "ledfx",
                 "-p",
                 f"{BASE_PORT}",
