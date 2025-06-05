@@ -407,7 +407,8 @@ class WLED:
         Returns:
             boolean: True is "On", False is "Off"
         """
-        return await self.get_state()["on"]
+        state = await self.get_state()
+        return state["on"]
 
     async def get_segments(self):
         """
