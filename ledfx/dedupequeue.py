@@ -7,46 +7,66 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class VisDeduplicateQ(asyncio.Queue):
-    """
-    Deduplicate queue for visualisation updates
+    """Deduplicate queue for visualisation updates."""
 
-    Queues carrying visualisation updates to devices and virtual
-    in the front end can lag hard if the front end is struggling.
-
-    Although the backend forces a queue flush if the depth gets to 256
-    any visualisation update in in the queue is just old data
-    it is better not to queue an update if one is already in the queue
-    rather than let 10s of old updates build up
-
-    Uses private access to  _queue to check for duplicates
-    """
-
-    def __init__(self, maxsize=0):
+    def __init__(self, maxsize: int = 0) -> None:
         super().__init__(maxsize)
+        # Maintain a set of keys for constant time duplicate checks
+        self._dedupe_keys: set[tuple[str, str | None]] = set()
+
+    def _make_key(self, item) -> tuple[str, str | None]:
+        return item.get("event_type"), item.get("vis_id")
 
     def put_nowait(self, item):
-
         # to debug depth of queues and queue leakage enable teleplot below
         # from ledfx.utils import Teleplot
         # Teleplot.send(f"{hex(id(self))}:{self.qsize()}")
 
-        # protect against None item flushing during socket closure
-        if item:
-            # Check if is a visualisation update message
-            if (
-                item.get("event_type") == Event.DEVICE_UPDATE
-                or item.get("event_type") == Event.VISUALISATION_UPDATE
-            ):
-                # check if it is a duplicate and just return without queing if it is
-                if any(
-                    self.is_similar(item, existing_item)
-                    for existing_item in self._queue
-                ):
-                    _LOGGER.info(
-                        f"Queue: {hex(id(self))} discarding, qsize {self.qsize()}"
-                    )
-                    return
+        if item and item.get("event_type") in (
+            Event.DEVICE_UPDATE,
+            Event.VISUALISATION_UPDATE,
+        ):
+            key = self._make_key(item)
+            if key in self._dedupe_keys:
+                _LOGGER.info(
+                    f"Queue: {hex(id(self))} discarding, qsize {self.qsize()}"
+                )
+                return
+            self._dedupe_keys.add(key)
+
         super().put_nowait(item)
+
+    async def put(self, item):
+        if item and item.get("event_type") in (
+            Event.DEVICE_UPDATE,
+            Event.VISUALISATION_UPDATE,
+        ):
+            key = self._make_key(item)
+            if key in self._dedupe_keys:
+                _LOGGER.info(
+                    f"Queue: {hex(id(self))} discarding, qsize {self.qsize()}"
+                )
+                return
+            self._dedupe_keys.add(key)
+        await super().put(item)
+
+    def get_nowait(self):
+        item = super().get_nowait()
+        if item and item.get("event_type") in (
+            Event.DEVICE_UPDATE,
+            Event.VISUALISATION_UPDATE,
+        ):
+            self._dedupe_keys.discard(self._make_key(item))
+        return item
+
+    async def get(self):
+        item = await super().get()
+        if item and item.get("event_type") in (
+            Event.DEVICE_UPDATE,
+            Event.VISUALISATION_UPDATE,
+        ):
+            self._dedupe_keys.discard(self._make_key(item))
+        return item
 
     def is_similar(self, new, queued):
         # We know we are already one of the correct types, but is it the same as queued
