@@ -83,6 +83,9 @@ if (
 else:
     clock_source = "monotonic"
 
+# Cache the sleep resolution once to avoid repeated system calls
+SLEEP_RESOLUTION = time.get_clock_info(clock_source).resolution
+
 
 def calc_available_fps():
     """
@@ -93,7 +96,7 @@ def calc_available_fps():
         Returns:
                 dict: A dictionary where the keys represent the FPS and the values represent the corresponding multiplier.
     """
-    sleep_res = time.get_clock_info(clock_source).resolution
+    sleep_res = SLEEP_RESOLUTION
 
     if sleep_res < 0.001:
         mult = int(0.001 / sleep_res)
@@ -127,7 +130,7 @@ def fps_to_sleep_interval(fps):
     Returns:
             float: The sleep interval in seconds.
     """
-    sleep_res = time.get_clock_info(clock_source).resolution
+    sleep_res = SLEEP_RESOLUTION
     sleep_ticks = next(
         (t for f, t in AVAILABLE_FPS.items() if f >= fps),
         list(AVAILABLE_FPS.values())[-1],
